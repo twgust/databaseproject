@@ -2,13 +2,10 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.time.ZonedDateTime;
-import java.util.Calendar;
 import java.util.Hashtable;
-import java.util.Date;
 
 class ConsoleUI {
 
@@ -16,17 +13,56 @@ class ConsoleUI {
 
     private BufferedReader in;
     private String loginID;
+    private IDatabase db;
 
-    ConsoleUI() {
+    ConsoleUI(IDatabase database) {
         in = new BufferedReader(new InputStreamReader(System.in));
         loginID = "";
+        db = database;
     }
 
     private void print(String str) {
         System.out.println(str);
     }
 
-    private boolean loginMenu() throws IOException {
+    private void print(ResultSet resultSet) {
+        try {
+            if (!resultSet.isBeforeFirst()) {
+                System.out.println("No results.");
+                return;
+            }
+
+            ResultSetMetaData metaData = resultSet.getMetaData();
+            String columnLabel;
+            int columnRowSize = 0; // nbr of chars in the column row
+
+            // Print column labels
+            for (int i = 0; i < metaData.getColumnCount(); i++) {
+                columnLabel = metaData.getColumnLabel(i);
+                columnRowSize += columnLabel.length() + 4;
+                System.out.print(columnLabel + "    ");
+            }
+
+            // Print dashed line
+            System.out.print("\n");
+            for (int i = 0; i < columnRowSize; i++) {
+                System.out.print('-');
+            }
+            System.out.print("\n");
+
+            while(resultSet.next()) {
+                for (int i = 0; i < metaData.getColumnCount(); i++) {
+                    Object value = resultSet.getObject(i);
+                    System.out.print(value.toString() + "    ");
+                }
+            }
+
+        } catch (SQLException e) {
+            System.err.println("SQLException");
+        }
+    }
+
+    private boolean loginMenu() throws IOException, SQLException {
         String answer;
 
         print("--- HEALTH CENTER ---");
@@ -54,18 +90,27 @@ class ConsoleUI {
         return true;
     }
 
-    private void login(AccessLevel accessLevel) throws IOException {
+    private void login(AccessLevel accessLevel) throws IOException, SQLException {
         if (accessLevel == AccessLevel.PATIENT) {
             print("Are you an already registered patient? (y/n)");
             String answer = in.readLine();
             if (answer.equals("n")) {
-                registerNewPatient();
+                if (!registerNewPatient()) {
+                    loginMenu();
+                    return;
+                }
             }
             else {
                 print("Please enter you medical number:");
                 loginID = in.readLine();
 
-                // TODO db stuff, check if medical nbr exists
+                // Checks if medical nbr exists
+                ResultSet result = db.getMedicalNumber(loginID);
+                if (!result.isBeforeFirst()) {
+                    print("No such patient exists");
+                    login(AccessLevel.PATIENT);
+                    return;
+                }
             }
 
             print("Logged in as a patient");
@@ -75,7 +120,13 @@ class ConsoleUI {
             print("Please enter you employee number:");
             loginID = in.readLine();
 
-            // TODO db stuff, check if employee nbr exists
+            // Checks if employee nbr exists
+            ResultSet result = db.getEmployeeNumber(loginID);
+            if (!result.isBeforeFirst()) {
+                print("No such doctor exists");
+                loginMenu();
+                return;
+            }
 
             print("Logged in as a doctor");
             doctorMenu();
@@ -87,7 +138,7 @@ class ConsoleUI {
         }
     }
 
-    private void adminMenu() throws IOException {
+    private void adminMenu() throws IOException, SQLException {
         String answer;
 
         print("--- ADMIN MENU ---");
@@ -139,23 +190,22 @@ class ConsoleUI {
     }
 
     private void viewAllPatients() {
-        // TODO db stuff. Also show the sum of all visit costs for each patient.
+        print(db.getAllPatientsAndSum());
     }
 
     private void viewAllAppointments() {
-        // TODO db stuff
+        print(db.getAllUpcomingAppointments());
     }
 
     private void viewMedicalRecordByPatient() throws IOException {
         print("Which patient? Please enter a 9-digit medical number:");
-
         String answer = in.readLine();
 
-        // TODO db stuff
+        print(db.getMedicalRecordsByPatient(answer));
     }
 
     private void viewAllDoctors() {
-        // TODO db stuff
+        print(db.getAllDoctors());
     }
 
     private void addDoctor() throws IOException {
@@ -180,7 +230,13 @@ class ConsoleUI {
         print("Please enter a phone number:");
         phoneNbr = in.readLine();
 
-        // TODO db stuff
+        if (db.addDoctor(employeeNbr, firstName, lastName,
+                specialization, phoneNbr)) {
+            print("Added successfully.");
+        }
+        else {
+            print("Attempt to add doctor was unsuccessful.");
+        }
     }
 
     private void addSpecialization() throws IOException {
@@ -197,7 +253,12 @@ class ConsoleUI {
         print("Please enter the visiting cost:");
         visitCost = in.readLine();
 
-        // TODO db stuff
+        if (db.addSpecialization(specID, specName, visitCost)) {
+            print("Added successfully.");
+        }
+        else {
+            print("Attempt to add specialization was unsuccessful.");
+        }
     }
 
     private void deleteDoctor() throws IOException {
@@ -205,10 +266,15 @@ class ConsoleUI {
 
         String employeeNbr = in.readLine();
 
-        // TODO db stuff
+        if (db.deleteDoctor(employeeNbr)) {
+            print("Deleted successfully.");
+        }
+        else {
+            print("Deletion was unsuccessful.");
+        }
     }
 
-    private void doctorMenu() throws IOException {
+    private void doctorMenu() throws IOException, SQLException {
         String answer;
 
         print("--- DOCTOR MENU ---");
@@ -256,23 +322,18 @@ class ConsoleUI {
 
 
     private void viewUpcomingAppointmentsByDoctor() {
-
-        // TODO db stuff using loginID as employee nbr
-
+        print(db.getUpcomingAppointmentsByDoctor(loginID));
     }
 
     private void viewPatientsByDoctor() {
-
-        // TODO db stuff using loginID as employee nbr
-
+        print(db.getPatientsByDoctor(loginID));
     }
 
     private void viewPrescribedDrugs() throws IOException {
         print("For which patient? Please enter a 9-digit medical number:");
-
         String medicalNbr = in.readLine();
 
-        // TODO db stuff
+        print(db.getDrugsPrescribedToPatient(medicalNbr));
     }
 
     private void addMedicalRecord() throws IOException {
@@ -289,7 +350,11 @@ class ConsoleUI {
         print("Please write a description:");
         description = in.readLine();
 
-        // TODO add a new medical record using the loginID as employee nbr
+        if (!db.updateTodaysMedicalRecord(loginID,
+                medicalNbr, diagnosis, description)) {
+            print("Attempt to insert a medical record was unsuccessful.");
+            return;
+        }
 
         String drugID = "tmp";
         String drugName;
@@ -304,15 +369,51 @@ class ConsoleUI {
             print("Please enter the name of the drug:");
             drugName = in.readLine();
 
-            // TODO add drug into db
+            if (!db.prescribeNewDrug(medicalNbr, drugID, drugName))
+                print("Attempt to add a drug was unsuccessful.");
+
         }
     }
 
-    private void registerUnavailability() {
-        // TODO no idea how to approach this right now
+    private void registerUnavailability() throws IOException, SQLException {
+        ResultSet resultTimes = db.getDoctorAvailabilityNextWeek(loginID);
+        Hashtable<Integer, LocalDateTime> timesMap = new Hashtable<>();
+
+        Integer row = 1;
+        LocalDateTime dateTime;
+        while (resultTimes.next()) {
+            dateTime = resultTimes.getTimestamp("datetime").toLocalDateTime();
+            timesMap.put(row, dateTime);
+
+            print("\t" + row + ". " + dateTime.getDayOfWeek().name() +
+                        " " + dateTime.getDayOfMonth() +
+                        "/ " + dateTime.getMonthValue() +
+                        ", " + dateTime.getHour() +
+                        ":" + dateTime.getMinute());
+            row++;
+        }
+
+        if (timesMap.isEmpty()) {
+            print("No available times were found.");
+        }
+        else {
+            String answer = in.readLine();
+            int answerRow;
+            try {
+                answerRow = Integer.parseInt(answer);
+            } catch (NumberFormatException e) {
+                answerRow = -1;
+            }
+            if (!answer.equals("exit") && answerRow > 0 && answerRow <= row) {
+                db.registerUnavailability(loginID, timesMap.get(answerRow));
+            }
+            else {
+                print("Invalid input.");
+            }
+        }
     }
 
-    private void patientMenu() throws IOException {
+    private void patientMenu() throws IOException, SQLException {
         print("--- PATIENT MENU ---");
         print("\t1. Book appointment");
         print("\t2. View personal details");
@@ -341,7 +442,7 @@ class ConsoleUI {
         }
     }
 
-    private void registerNewPatient() throws IOException {
+    private boolean registerNewPatient() throws IOException {
         String medicalNbr;
         String fName;
         String lName;
@@ -382,22 +483,25 @@ class ConsoleUI {
         print("Please enter the day you were born:");
         birthDay = in.readLine();
 
-        // TODO add a new patient, also add current date as registration date
+        if (!db.addPatient(medicalNbr, fName, lName, gender,
+                address, phoneNbr, birthYear, birthMonth, birthDay)) {
+            System.err.println("Registration was unsuccessful.");
+            return false;
+        }
 
         loginID = medicalNbr;
+        return true;
     }
 
     private void chooseDoctorToBook() throws IOException {
-        // TODO get all doctors and their spec and cost.
-        ResultSet resultDoctors = null;
+        ResultSet resultDoctors = db.getAllDoctorsSpecAndCost();
         Hashtable<Integer, String> doctorMap = new Hashtable<>();
 
         Integer row = 1;
         try {
             while (resultDoctors.next()) {
                 doctorMap.put(row, resultDoctors.getString("employee_number"));
-                print("\t" + row + ". "+resultDoctors.getNString("first_name")+
-                        " " + resultDoctors.getNString("last_name") +
+                print("\t" + row + ". "+resultDoctors.getNString("name") +
                         ", " + resultDoctors.getNString("specialization") +
                         ", " + resultDoctors.getDouble("cost"));
                 row++;
@@ -429,9 +533,8 @@ class ConsoleUI {
         }
     }
 
-    private void chooseAppointment(String employee_nbr) throws IOException {
-        // TODO get available times for next week, using employee_nbr
-        ResultSet resultTimes = null;
+    private void chooseAppointment(String employeeNbr) throws IOException {
+        ResultSet resultTimes = db.getDoctorAvailabilityNextWeek(employeeNbr);
         Hashtable<Integer, LocalDateTime> timesMap = new Hashtable<>();
 
         Integer row = 1;
@@ -463,7 +566,7 @@ class ConsoleUI {
                 }
 
                 if (!answer.equals("exit") && answerRow > 0 && answerRow <= row) {
-                    bookAppointment(timesMap.get(answerRow), employee_nbr);
+                    bookAppointment(timesMap.get(answerRow), employeeNbr);
                 }
                 else {
                     print("Invalid input.");
@@ -475,19 +578,19 @@ class ConsoleUI {
         }
     }
 
-    private void bookAppointment(LocalDateTime dateTime, String employee_nbr) {
-
-        // TODO book appointment with dateTime, lognID and employee_nbr
-
-    }
-
-    private void viewPatientDetails(String medial_nbr) {
-
-        // TODO get patient information
+    private void bookAppointment(LocalDateTime dateTime, String employeeNbr) {
+        if (db.bookAppointment(loginID, employeeNbr, dateTime))
+            print("Booking was successful.");
+        else
+            print("Booking was unsuccessful.");
 
     }
 
-    private void editPatientDetails(String medial_nbr) throws IOException {
+    private void viewPatientDetails(String medicalNbr) {
+        print(db.getPatient(medicalNbr));
+    }
+
+    private void editPatientDetails(String medicalNbr) throws IOException {
         String Fname;
         String Lname;
         String gender;
@@ -519,7 +622,12 @@ class ConsoleUI {
         print("Please enter the day you born:");
         birthDay = in.readLine();
 
-        // TODO update patient only with fields that aren't blank
+        // Update patient only with fields that aren't blank
+        if (db.updatePatient(medicalNbr, Fname, Lname, gender,
+                phone_nbr, birthYear, birthMonth, birthDay))
+            print("Your information was successfully updated.");
+        else
+            print("Update was unsuccessful.");
 
     }
 
@@ -531,18 +639,13 @@ class ConsoleUI {
             }
 
             close();
-        } catch (IOException e) {
+        } catch (IOException | SQLException e) {
             close();
         }
     }
 
     void close() {
-        print("Closing application");
-    }
-
-    public static void main(String[] args) {
-        ConsoleUI ui = new ConsoleUI();
-        ui.start();
+        print("Closing application...");
     }
 
 }
