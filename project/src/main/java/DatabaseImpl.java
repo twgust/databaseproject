@@ -17,7 +17,7 @@ public class DatabaseImpl implements IDatabase {
         try {
             String password = new String(Files.readAllBytes(Paths.get("sqlpassword.txt")));
             //conn = DriverManager.getConnection("jdbc:sqlserver://localhost:1433;databaseName=Medical_Center;", "ROBERT-PC\\Robert", "");
-            conn = DriverManager.getConnection("jdbc:sqlserver://ROBERT-PC\\Robert:1433;databaseName=Medical_Center;", "user", password);
+            conn = DriverManager.getConnection("jdbc:sqlserver://localhost:1433;databaseName=Medical_Center;", "user", password);
             System.out.println("Connected to database.");
         } catch (SQLException | IOException throwables) {
             System.out.println("Failed");
