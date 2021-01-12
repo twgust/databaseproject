@@ -5,6 +5,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.sql.*;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 public class DatabaseImpl implements IDatabase {
@@ -204,7 +205,16 @@ public class DatabaseImpl implements IDatabase {
 
     @Override
     public boolean registerUnavailability(String employeeNbr, LocalDateTime dateTime) {
-        return false;
+        try {
+            PreparedStatement ps = conn.prepareStatement("INSERT INTO unavailability(employee_number, app_date) VALUES(?,)");
+            ps.setInt(1, Integer.parseInt(employeeNbr));
+            ps.setTimestamp(2, Timestamp.valueOf(dateTime));
+            ps.executeUpdate();
+            return true;
+        } catch (SQLException | NumberFormatException throwables) {
+            throwables.printStackTrace();
+            return false;
+        }
     }
 
     @Override
@@ -219,7 +229,14 @@ public class DatabaseImpl implements IDatabase {
 
     @Override
     public ResultSet getDoctorAvailabilityNextWeek(String employeeNbr) {
-        return null;
+        try {
+            PreparedStatement ps = conn.prepareStatement("SELECT * FROM unavailability WHERE employee_number = ?");
+            ps.setInt(1, Integer.parseInt(employeeNbr));
+            return ps.executeQuery();
+        } catch (SQLException | NumberFormatException throwables) {
+            throwables.printStackTrace();
+            return null;
+        }
     }
 
     @Override
