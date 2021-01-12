@@ -37,7 +37,7 @@ class ConsoleUI {
             int columnRowSize = 0; // nbr of chars in the column row
 
             // Print column labels
-            for (int i = 0; i < metaData.getColumnCount(); i++) {
+            for (int i = 1; i <= metaData.getColumnCount(); i++) {
                 columnLabel = metaData.getColumnLabel(i);
                 columnRowSize += columnLabel.length() + 4;
                 System.out.print(columnLabel + "    ");
@@ -51,13 +51,15 @@ class ConsoleUI {
             System.out.print("\n");
 
             while(resultSet.next()) {
-                for (int i = 0; i < metaData.getColumnCount(); i++) {
+                for (int i = 1; i <= metaData.getColumnCount(); i++) {
                     Object value = resultSet.getObject(i);
                     System.out.print(value.toString() + "    ");
                 }
+                System.out.println("");
             }
 
         } catch (SQLException e) {
+            e.printStackTrace();
             System.err.println("SQLException");
         }
     }
@@ -141,7 +143,7 @@ class ConsoleUI {
     private void adminMenu() throws IOException, SQLException {
         String answer;
 
-        print("--- ADMIN MENU ---");
+        print("\n--- ADMIN MENU ---");
         print("\t1. View patients"); // Include all fields plus the sum of all visits
         print("\t2. View appointments");
         print("\t3. View medical records");
