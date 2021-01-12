@@ -7,6 +7,9 @@ import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.util.Hashtable;
 
+/**
+ * @author Kasper S. Skott
+ */
 class ConsoleUI {
 
     enum AccessLevel { NONE, PATIENT, DOCTOR, ADMIN }
@@ -26,6 +29,11 @@ class ConsoleUI {
     }
 
     private void print(ResultSet resultSet) {
+        if (resultSet == null) {
+            System.out.println("No results.");
+            return;
+        }
+
         try {
             if (!resultSet.isBeforeFirst()) {
                 System.out.println("No results.");
@@ -70,7 +78,7 @@ class ConsoleUI {
     private boolean loginMenu() throws IOException, SQLException {
         String answer;
 
-        print("--- HEALTH CENTER ---");
+        print("\n--- HEALTH CENTER ---");
         print("Login as:");
         print("\t1. Patient");
         print("\t2. Doctor");
@@ -282,14 +290,16 @@ class ConsoleUI {
     private void doctorMenu() throws IOException, SQLException {
         String answer;
 
-        print("--- DOCTOR MENU ---");
+        print("\n--- DOCTOR MENU ---");
         print("\t1. View upcoming appointments");
         print("\t2. View my patients");
-        print("\t3. View prescribed drugs");
-        print("\t4. View medical records");
-        print("\t5. Add medical record");
-        print("\t6. Register unavailability");
-        print("\t7. Log out");
+        print("\t3. View all drugs");
+        print("\t4. View prescribed drugs");
+        print("\t5. View medical records");
+        print("\t6. Add medical record");
+        print("\t7. Add new drug");
+        print("\t8. Register unavailability");
+        print("\t9. Log out");
 
         answer = in.readLine();
         if (answer.equals("1")) {
@@ -301,22 +311,30 @@ class ConsoleUI {
             doctorMenu();
         }
         else if (answer.equals("3")) {
-            viewPrescribedDrugs();
+            viewAllDrugs();
             doctorMenu();
         }
         else if (answer.equals("4")) {
-            viewMedicalRecordByPatient();
+            viewPrescribedDrugs();
             doctorMenu();
         }
         else if (answer.equals("5")) {
-            addMedicalRecord();
+            viewMedicalRecordByPatient();
             doctorMenu();
         }
         else if (answer.equals("6")) {
-            registerUnavailability();
+            addMedicalRecord();
             doctorMenu();
         }
         else if (answer.equals("7")) {
+            addDrug();
+            doctorMenu();
+        }
+        else if (answer.equals("8")) {
+            registerUnavailability();
+            doctorMenu();
+        }
+        else if (answer.equals("9")) {
             loginMenu();
         }
         else if (!answer.equalsIgnoreCase("exit")) {
@@ -332,6 +350,10 @@ class ConsoleUI {
 
     private void viewPatientsByDoctor() {
         print(db.getPatientsByDoctor(loginID));
+    }
+
+    private void viewAllDrugs() {
+        print(db.getAllDrugs());
     }
 
     private void viewPrescribedDrugs() throws IOException {
@@ -368,21 +390,31 @@ class ConsoleUI {
         while(!drugID.isBlank()) {
             print("Please enter a new drug id:");
             drugID = in.readLine();
-            if (drugID.isBlank())
-                break;
 
-            print("Please enter the name of the drug:");
-            drugName = in.readLine();
-
-            if (!db.prescribeNewDrug(medicalNbr, drugID, drugName))
-                print("Attempt to add a drug was unsuccessful.");
-
+            if (!db.prescribeNewDrug(medicalNbr, drugID))
+                print("Attempt to prescribe the drug was unsuccessful.");
         }
+    }
+
+    private void addDrug() throws IOException, SQLException {
+        print("Please enter the name of the new drug:");
+        String drugName = in.readLine();
+
+        if (db.addNewDrug(drugName))
+            print("The new drug has been added successfully.");
+        else
+            print("Attempt to add a drug was unsuccessful.");
+
     }
 
     private void registerUnavailability() throws IOException, SQLException {
         ResultSet resultTimes = db.getDoctorAvailabilityNextWeek(loginID);
         Hashtable<Integer, LocalDateTime> timesMap = new Hashtable<>();
+
+        if (resultTimes == null) {
+            print("No available times were found.");
+            return;
+        }
 
         Integer row = 1;
         LocalDateTime dateTime;
@@ -419,7 +451,7 @@ class ConsoleUI {
     }
 
     private void patientMenu() throws IOException, SQLException {
-        print("--- PATIENT MENU ---");
+        print("\n--- PATIENT MENU ---");
         print("\t1. Book appointment");
         print("\t2. View personal details");
         print("\t3. Edit personal details");
@@ -458,7 +490,7 @@ class ConsoleUI {
         String birthMonth;
         String birthDay;
 
-        print("--- PATIENT REGISTRATION ---");
+        print("\n--- PATIENT REGISTRATION ---");
         print("Please enter your medical number:");
         medicalNbr = in.readLine();
 
@@ -502,6 +534,11 @@ class ConsoleUI {
         ResultSet resultDoctors = db.getAllDoctorsSpecAndCost();
         Hashtable<Integer, String> doctorMap = new Hashtable<>();
 
+        if (resultDoctors == null) {
+            print("No doctors were found.");
+            return;
+        }
+
         Integer row = 1;
         try {
             while (resultDoctors.next()) {
@@ -541,6 +578,11 @@ class ConsoleUI {
     private void chooseAppointment(String employeeNbr) throws IOException {
         ResultSet resultTimes = db.getDoctorAvailabilityNextWeek(employeeNbr);
         Hashtable<Integer, LocalDateTime> timesMap = new Hashtable<>();
+
+        if (resultTimes == null) {
+            print("No available times were found.");
+            return;
+        }
 
         Integer row = 1;
         LocalDateTime dateTime;

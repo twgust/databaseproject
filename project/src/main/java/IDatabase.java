@@ -1,6 +1,9 @@
 import java.sql.ResultSet;
 import java.time.LocalDateTime;
 
+/**
+ * @author Kasper S. Skott
+ */
 interface IDatabase {
 
     /**
@@ -82,6 +85,11 @@ interface IDatabase {
     ResultSet getPatientsByDoctor(String employeeNbr);
 
     /**
+     * Returns all drugs in the database
+     */
+    ResultSet getAllDrugs();
+
+    /**
      * Get every drug prescribed to the patient
      * @param medicalNbr the patient
      */
@@ -100,14 +108,19 @@ interface IDatabase {
                                       String diagnosis, String description);
 
     /**
-     * Attempts to add the drug if it doesn't exist, then
-     * prescribe it to the patient.
+     * Prescribes the given drug to the patient.
      * @param medicalNbr
      * @param drugId
+     * @return true if successful, otherwise false
+     */
+    boolean prescribeNewDrug(String medicalNbr, String drugId);
+
+    /**
+     * Attempts to add a new drug with the given name.
      * @param drugName
      * @return true if successful, otherwise false
      */
-    boolean prescribeNewDrug(String medicalNbr, String drugId, String drugName);
+    boolean addNewDrug(String drugName);
 
     /**
      * Attempts to register a date and time as unavailable for the doctor.
