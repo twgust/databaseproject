@@ -31,7 +31,11 @@ public class DatabaseImpl implements IDatabase {
     @Override
     public ResultSet getEmployeeNumber(String employeeNbr) {
         try {
+            PreparedStatement ps = conn.prepareStatement("EXEC sp_getEmployeeNumber @employeeNbr = ?");
+            /* STATEMENT CODE
             PreparedStatement ps = conn.prepareStatement("SELECT employee_number FROM doctor WHERE employee_number = ?");
+
+             */
             ps.setInt(1,Integer.parseInt(employeeNbr));
             return ps.executeQuery();
         } catch (SQLException | NumberFormatException throwables) {
