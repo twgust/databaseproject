@@ -37,7 +37,7 @@ class ConsoleUI {
             int columnRowSize = 0; // nbr of chars in the column row
 
             // Print column labels
-            for (int i = 0; i < metaData.getColumnCount(); i++) {
+            for (int i = 1; i < metaData.getColumnCount(); i++) {
                 columnLabel = metaData.getColumnLabel(i);
                 columnRowSize += columnLabel.length() + 4;
                 System.out.print(columnLabel + "    ");
@@ -51,7 +51,7 @@ class ConsoleUI {
             System.out.print("\n");
 
             while(resultSet.next()) {
-                for (int i = 0; i < metaData.getColumnCount(); i++) {
+                for (int i = 1; i < metaData.getColumnCount(); i++) {
                     Object value = resultSet.getObject(i);
                     System.out.print(value.toString() + "    ");
                 }

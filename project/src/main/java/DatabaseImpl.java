@@ -1,12 +1,11 @@
+import com.sun.source.tree.TryTree;
+
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import java.sql.*;
 import java.time.LocalDateTime;
 
 public class DatabaseImpl implements IDatabase {
@@ -26,7 +25,22 @@ public class DatabaseImpl implements IDatabase {
 
     @Override
     public ResultSet getMedicalNumber(String medicalNbr) {
-        return null;
+        Statement st = null;
+        ResultSet rs = null;
+        String query = "SELECT medicalnumber FROM patient WHERE patient.medicalnumber='"+medicalNbr+"'";
+        try{
+            st = conn.createStatement();
+            rs= st.executeQuery(query);
+            if(!rs.next()){
+                // no result
+                return rs;
+            }
+        }
+        catch (SQLException throwables){
+            throwables.printStackTrace();
+        }
+        // else just return result
+         return rs;
     }
 
     @Override
@@ -98,10 +112,18 @@ public class DatabaseImpl implements IDatabase {
     public boolean registerUnavailability(String employeeNbr, LocalDateTime dateTime) {
         return false;
     }
-
     @Override
     public boolean addPatient(String medicalNbr, String fName, String lName, String gender, String address, String phoneNbr, String birthYear, String birthMonth, String birthDay) {
-        return false;
+        try{
+            PreparedStatement ps = conn.prepareStatement("INSERT INTO [patient] VALUES ('" + medicalNbr + "','" + fName + "','"
+                    + lName + "','" + gender + "','" + address + "','" + phoneNbr + "','" + birthDay + "','" + birthMonth + "','"
+                    + birthDay+ "');");
+        }catch (SQLException throwables){
+            System.out.println("FAIL");
+            throwables.printStackTrace();
+            return false;
+        }
+        return true;
     }
 
     @Override
@@ -116,16 +138,100 @@ public class DatabaseImpl implements IDatabase {
 
     @Override
     public boolean bookAppointment(String medicalNbr, String employeeNbr, LocalDateTime dateTime) {
-        return false;
+        String getUnavailability = "SELECT [employee_number] FROM [unavailabilty] WHERE unavailabilty.employee_number='"
+        + employeeNbr +"' AND" + dateTime + ";"; // add dateTime
+        ResultSet rsCheckUnavailability = null;
+        Statement stCheckUnavailability = null;
+
+        String insertUnavailability = "INSERT INTO [unavailability] VALUES ('" + employeeNbr + "'," + dateTime+");";
+        Statement stUnavailability;
+
+        // need to insert app_id when it's auto increment? also, description and diagnosis?
+        String insertAppointment = "INSERT INTO [appointment] VALUES ([app_id], '" + employeeNbr +"'," + dateTime +
+                "'" + medicalNbr + "');";
+        Statement stAppointment;
+
+        try{
+            // query [unavailability] table for doctor selected in UI
+            stCheckUnavailability = conn.createStatement();
+            rsCheckUnavailability = stCheckUnavailability.executeQuery(getUnavailability);
+
+            // if resultset returns that there is no unavailability then book appointment and set unavailability
+            if(rsCheckUnavailability.getTimestamp("app_date") == null){
+                // statement that inserts into unavailability table
+                // satement that inserts into appointment table
+                stUnavailability = conn.createStatement();
+                stAppointment = conn.createStatement();
+
+                stUnavailability.executeQuery(insertUnavailability);
+                stAppointment.executeQuery(insertAppointment);
+            }
+            // if ResultSet returns unavailability (ResultSet doesn't return null)
+            else{
+                return false;
+            }
+
+            }catch (SQLException throwables){
+            throwables.printStackTrace();
+            return false;
+        }
+        return true;
     }
 
     @Override
     public ResultSet getPatient(String medicalNbr) {
-        return null;
+        Statement st = null;
+        ResultSet rs = null;
+        String query = "SELECT * FROM [patient] WHERE patient.medicalnumber='"+medicalNbr+"'";
+        try{
+            st = conn.createStatement();
+            rs= st.executeQuery(query);
+        }catch (SQLException throwables){
+            throwables.printStackTrace();
+        }
+        return rs;
     }
 
     @Override
     public boolean updatePatient(String medicalNbr, String fName, String lName, String gender, String phoneNbr, String birthYear, String birthMonth, String birthDay) {
-        return false;
+        Statement st = null;
+        String query = "UPDATE patient SET ";
+        if(fName != null || !fName.equals("")){
+            // query to update fName
+            query += "first_name '" + fName + "' ";
+        }
+        if(lName != null || !lName.equals("")){
+            // query to update lName
+            query += "last_name '" + lName + "' ";
+        }
+        if(gender.equalsIgnoreCase("m") || gender.equalsIgnoreCase("f")){
+            // query to update
+            query += "gender '" + gender + "' ";
+        }
+            // no lower limit
+        if(phoneNbr.matches("[0-9]+") && phoneNbr.length() <= 15){
+            // query to update
+            query += "phone '" + phoneNbr + "' ";
+        }
+        if(birthYear.matches("[0-9]+") && birthYear.length() <= 4){
+            // query to update
+            query += "birthdate '" + birthYear + "-";
+        }
+        if(birthMonth.matches("[0-9]+") && birthYear.length() <= 2){
+            // query to update
+            query += birthMonth;
+        }
+        if(birthDay.matches("[0-9]+") && birthDay.length() <=2){
+            // query
+            query += "-" + birthDay;
+        }
+        try{
+            st = conn.createStatement();
+            st.executeQuery(query);
+        }catch (SQLException throwables){
+            throwables.printStackTrace();
+            return false;
+        }
+        return true;
     }
 }
