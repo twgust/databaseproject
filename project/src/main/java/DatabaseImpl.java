@@ -134,8 +134,8 @@ public class DatabaseImpl implements IDatabase {
 
              */
             ps.setInt(1,Integer.parseInt(employeeNbr));
-            ps.setString(2,firstName);
-            ps.setString(3,lastName);
+            ps.setNString(2,firstName);
+            ps.setNString(3,lastName);
             ps.setInt(4,Integer.parseInt(specialization));
             ps.setString(5,phoneNbr);
             ps.executeUpdate();
