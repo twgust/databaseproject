@@ -119,6 +119,11 @@ class ConsoleUI {
 
                 // Checks if medical nbr exists
                 ResultSet result = db.getMedicalNumber(loginID);
+                if(result == null){
+                    System.out.println("Database error when retrieving medical number");
+                    login(AccessLevel.PATIENT);
+                    return;
+                }
                 if (!result.isBeforeFirst()) {
                     print("No such patient exists");
                     login(AccessLevel.PATIENT);
@@ -135,6 +140,11 @@ class ConsoleUI {
 
             // Checks if employee nbr exists
             ResultSet result = db.getEmployeeNumber(loginID);
+            if(result == null){
+                System.out.println("Database error when retriveing employee number");
+                loginMenu();
+                return;
+            }
             if (!result.isBeforeFirst()) {
                 print("No such doctor exists");
                 loginMenu();
