@@ -7,6 +7,7 @@ import java.nio.file.Paths;
 import java.sql.*;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.function.BooleanSupplier;
 
 public class DatabaseImpl implements IDatabase {
 
@@ -25,7 +26,20 @@ public class DatabaseImpl implements IDatabase {
 
     @Override
     public ResultSet getMedicalNumber(String medicalNbr) {
-        return null;
+        Statement st = null;
+        ResultSet rs = null;
+        String query = "SELECT medicalnumber FROM patient WHERE patient.medicalnumber='"+medicalNbr+"'";
+        try{
+            st = conn.createStatement();
+            rs= st.executeQuery(query);
+            return rs;
+
+        }
+        catch (SQLException throwables){
+            throwables.printStackTrace();
+        }
+        // else just return result
+        return rs;
     }
 
     @Override
@@ -100,7 +114,7 @@ public class DatabaseImpl implements IDatabase {
         try {
             PreparedStatement ps = conn.prepareStatement("EXEC sp_getAllDoctors");
             /*STATEMENT CODE
-            PreparedStatement ps = conn.prepareStatement("SELECT * FROM doctor");
+            PreparedStatement ps = conn.prepareStatement("SELECT employee_number, first_name, last_name, phone, specialization  FROM doctor INNER JOIN specialization ON specialization.spec_id = doctor.spec_id");
 
              */
             return ps.executeQuery();
@@ -127,22 +141,22 @@ public class DatabaseImpl implements IDatabase {
             ps.executeUpdate();
             return true;
         } catch (SQLException | NumberFormatException throwables) {
-            throwables.printStackTrace();
+            //throwables.printStackTrace();
             return false;
         }
     }
 
     @Override
-    public boolean addSpecialization(String specId, String specName, String visitCost) {
+    public boolean addSpecialization(String specName, String visitCost) {
         try {
-            PreparedStatement ps = conn.prepareStatement("EXEC sp_addSpecialization @spec_id = ?, @specName = ?, @cost = ?");
+            PreparedStatement ps = conn.prepareStatement("EXEC sp_addSpecialization @specName = ?, @cost = ?");
             /*STATEMENT CODE
-            PreparedStatement ps = conn.prepareStatement("INSERT INTO specialization(spec_id,specialization,cost) VALUES(?,?,?)");
+            PreparedStatement ps = conn.prepareStatement("INSERT INTO specialization(specialization,cost) VALUES(?,?)");
 
              */
-            ps.setInt(1,Integer.parseInt(specId));
-            ps.setString(2,specName);
-            ps.setInt(3, Integer.parseInt(visitCost));
+            //ps.setInt(1,Integer.parseInt(specId));
+            ps.setString(1,specName);
+            ps.setInt(2, Integer.parseInt(visitCost));
             ps.executeUpdate();
             return true;
         } catch (SQLException | NumberFormatException throwables) {
@@ -220,7 +234,7 @@ public class DatabaseImpl implements IDatabase {
             PreparedStatement ps = conn.prepareStatement("EXEC sp_getDrugsPrescribedToPatient @medicalNbr = ?");
             /*
             STATEMENT CODE
-            PreparedStatement ps = conn.prepareStatement("SELECT patient.medicalnumber,first_name,last_name,gender,phone,birthdate,name FROM patient INNER JOIN prescribed_drugs ON prescribed_drugs.medicalnumber = patient.medicalnumber INNER JOIN drug ON drug.drug_id = prescribed_drugs.drug_id WHERE patient.medicalnumber = ?");
+            PreparedStatement ps = conn.prepareStatement("SELECT patient.medicalnumber,first_name,last_name,gender,phone,birthdate,name as drug FROM patient INNER JOIN prescribed_drugs ON prescribed_drugs.medicalnumber = patient.medicalnumber INNER JOIN drug ON drug.drug_id = prescribed_drugs.drug_id WHERE patient.medicalnumber = ?");
              */
             ps.setInt(1, Integer.parseInt(medicalNbr));
             return ps.executeQuery();
@@ -241,8 +255,11 @@ public class DatabaseImpl implements IDatabase {
             ps.setString(2,description);
             ps.setInt(3, Integer.parseInt(medicalNbr));
             ps.setInt(4, Integer.parseInt(employeeNbr));
-            ps.executeUpdate();
-            return true;
+            int returnCode  = ps.executeUpdate();
+            if(returnCode < 1){
+                return false;
+            }
+            else return true;
         } catch (SQLException | NumberFormatException throwables) {
             throwables.printStackTrace();
             return false;
@@ -304,20 +321,39 @@ public class DatabaseImpl implements IDatabase {
 
     @Override
     public boolean addPatient(String medicalNbr, String fName, String lName, String gender, String address, String phoneNbr, String birthYear, String birthMonth, String birthDay) {
-        return false;
+        try{
+            PreparedStatement ps = conn.prepareStatement("INSERT INTO patient(medicalnumber, first_name, last_name, gender, address, phone, birthdate, reg_date) VALUES ('" + medicalNbr + "','" + fName + "','"
+                    + lName + "','" + gender + "','" + address + "','" + phoneNbr + "','" + birthYear + "-" + birthMonth + "-"
+                    + birthDay+ "', CURRENT_TIMESTAMP);");
+            ps.executeUpdate();
+        }catch (SQLException throwables){
+            System.out.println("FAIL");
+            throwables.printStackTrace();
+            return false;
+        }
+        return true;
     }
 
     @Override
     public ResultSet getAllDoctorsSpecAndCost() {
-        return null;
+        try {
+            PreparedStatement ps = conn.prepareStatement("EXEC sp_getAllDoctorsSpecAndCost");
+            /*
+           PreparedStatement ps = conn.prepareStatement("SELECT employee_number, first_name  + ' ' + last_name AS name, specialization.specialization, cost FROM doctor INNER JOIN specialization ON specialization.spec_id = doctor.spec_id");
+            */
+            return ps.executeQuery();
+
+        } catch (SQLException | NumberFormatException throwables) {
+            throwables.printStackTrace();
+            return null;
+        }
     }
 
     @Override
     public ResultSet getDoctorAvailabilityNextWeek(String employeeNbr) {
-        // INT GJORT PROCEDURE
         try {
-            PreparedStatement ps = conn.prepareStatement("SELECT * FROM unavailability WHERE employee_number = ?");
-            ps.setInt(1, Integer.parseInt(employeeNbr));
+            PreparedStatement ps = conn.prepareStatement("SELECT * FROM SF_getDoctorAvailabilityNextWeek(?)");
+            ps.setInt(1,Integer.parseInt(employeeNbr));
             return ps.executeQuery();
         } catch (SQLException | NumberFormatException throwables) {
             throwables.printStackTrace();
@@ -327,21 +363,92 @@ public class DatabaseImpl implements IDatabase {
 
     @Override
     public boolean bookAppointment(String medicalNbr, String employeeNbr, LocalDateTime dateTime) {
-        return false;
+
+        try{
+            // query [unavailability] table for doctor selected in UI
+            PreparedStatement ps = conn.prepareStatement("INSERT INTO appointment(employee_number, app_date,medicalnumber, time_of_booking) VALUES(?,?,?, CURRENT_TIMESTAMP)");
+            ps.setInt(1, Integer.parseInt(employeeNbr));
+            ps.setTimestamp(2, Timestamp.valueOf(dateTime));
+            ps.setInt(3,Integer.parseInt(medicalNbr));
+            ps.executeUpdate();
+            return true;
+        }catch (SQLException throwables ){
+            //throwables.printStackTrace();
+            if(throwables.getErrorCode() == 3609){
+                System.out.println("Today is not friday");
+            }
+            else System.out.println("Unknown error occurred");
+            return false;
+        }catch (NumberFormatException e){
+            return false;
+        }
     }
 
     @Override
     public ResultSet getPatient(String medicalNbr) {
-        return null;
+        Statement st = null;
+        ResultSet rs = null;
+        String query = "SELECT * FROM [patient] WHERE patient.medicalnumber='"+medicalNbr+"'";
+        try{
+            st = conn.createStatement();
+            rs= st.executeQuery(query);
+        }catch (SQLException throwables){
+            throwables.printStackTrace();
+        }
+        return rs;
     }
 
     @Override
     public boolean updatePatient(String medicalNbr, String fName, String lName, String gender, String phoneNbr, String birthYear, String birthMonth, String birthDay) {
-        return false;
+        Statement st = null;
+        String baseQuery = "UPDATE patient SET ";
+        String query = "";
+
+
+        if(fName != null && !fName.isBlank()){
+            // query to update fName
+            query += "first_name ='" + fName + "'";
+        }
+        if(lName != null && !lName.isBlank()){
+            // query to update lName
+            query += ", last_name ='" + lName + "'";
+        }
+        if(gender.equalsIgnoreCase("m") || gender.equalsIgnoreCase("f")){
+            // query to update
+            query += ", gender ='" + gender.toUpperCase() + "'";
+        }
+        // no lower limit
+        if(phoneNbr.matches("[0-9]+") && phoneNbr.length() <= 15){
+            // query to update
+            query += ", phone ='" + phoneNbr + "'";
+        }
+        if(birthYear.matches("[0-9]+") && birthYear.length() <= 4){
+            // query to update
+            query += ", birthdate ='" + birthYear + "-";
+        }
+        if(birthMonth.matches("[0-9]+") && birthMonth.length() <= 2){
+            // query to update
+            query += birthMonth;
+        }
+        if(birthDay.matches("[0-9]+") && birthDay.length() <=2){
+            // query
+            query += "-" + birthDay +"'";
+        }
+        if(query.isBlank()){
+            return false;
+        }
+
+        query+= " WHERE medicalnumber = '"+medicalNbr+"';";
+        System.out.println(query);
+
+        try{
+            st = conn.createStatement();
+            st.executeUpdate(baseQuery+query);
+        }catch (SQLException throwables){
+            throwables.printStackTrace();
+            return false;
+        }
+        return true;
     }
 
-    public static void main(String[] args) {
-        DatabaseImpl test = new DatabaseImpl();
-        test.registerUnavailability("123455555", new Date(System.currentTimeMillis()).toLocalDate().atTime(10,10));
-    }
 }

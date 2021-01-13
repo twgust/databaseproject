@@ -62,7 +62,7 @@ interface IDatabase {
      * @param visitCost
      * @return true if successful, otherwise false
      */
-    boolean addSpecialization(String specId, String specName, String visitCost);
+    boolean addSpecialization(String specName, String visitCost);
 
     /**
      * Attempts to delete a doctor.

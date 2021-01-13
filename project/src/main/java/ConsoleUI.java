@@ -62,7 +62,7 @@ class ConsoleUI {
                 for (int i = 1; i <= metaData.getColumnCount(); i++) {
                     Object value = resultSet.getObject(i);
                     if(value == null){
-                        System.out.println("null" + "    ");
+                        System.out.print("null" + "    ");
                     }
                     else System.out.print(value.toString() + "    ");
                 }
@@ -257,16 +257,17 @@ class ConsoleUI {
         String specName;
         String visitCost;
 
-        print("Please enter a new specialization id:");
+        /*print("Please enter a new specialization id:");
         specID = in.readLine();
 
+         */
         print("Please enter the title/name of the specialization:");
         specName = in.readLine();
 
         print("Please enter the visiting cost:");
         visitCost = in.readLine();
 
-        if (db.addSpecialization(specID, specName, visitCost)) {
+        if (db.addSpecialization(specName, visitCost)) {
             print("Added successfully.");
         }
         else {
@@ -390,9 +391,12 @@ class ConsoleUI {
         while(!drugID.isBlank()) {
             print("Please enter a new drug id:");
             drugID = in.readLine();
-
+            if(drugID.isBlank()){
+                break;
+            }
             if (!db.prescribeNewDrug(medicalNbr, drugID))
-                print("Attempt to prescribe the drug was unsuccessful.");
+                    print("Attempt to prescribe the drug was unsuccessful.");
+
         }
     }
 
@@ -543,8 +547,8 @@ class ConsoleUI {
         try {
             while (resultDoctors.next()) {
                 doctorMap.put(row, resultDoctors.getString("employee_number"));
-                print("\t" + row + ". "+resultDoctors.getNString("name") +
-                        ", " + resultDoctors.getNString("specialization") +
+                print("\t" + row + ". "+resultDoctors.getString("name") +
+                        ", " + resultDoctors.getString("specialization") +
                         ", " + resultDoctors.getDouble("cost"));
                 row++;
             }
@@ -571,6 +575,7 @@ class ConsoleUI {
             }
 
         } catch (SQLException e) {
+            e.printStackTrace();
             System.err.println("Database error");
         }
     }
@@ -621,6 +626,7 @@ class ConsoleUI {
             }
         }
         catch (SQLException e) {
+            e.printStackTrace();
             System.err.println("Database error.");
         }
     }
