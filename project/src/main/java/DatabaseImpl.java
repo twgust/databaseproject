@@ -8,6 +8,10 @@ import java.sql.*;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.function.BooleanSupplier;
+/**
+ * @author Robert L
+ * @author Gustav F
+ */
 
 public class DatabaseImpl implements IDatabase {
 
@@ -23,6 +27,7 @@ public class DatabaseImpl implements IDatabase {
             throwables.printStackTrace();
         }
     }
+
 
     @Override
     public ResultSet getMedicalNumber(String medicalNbr) {
@@ -365,7 +370,6 @@ public class DatabaseImpl implements IDatabase {
     public boolean bookAppointment(String medicalNbr, String employeeNbr, LocalDateTime dateTime) {
 
         try{
-            // query [unavailability] table for doctor selected in UI
             PreparedStatement ps = conn.prepareStatement("INSERT INTO appointment(employee_number, app_date,medicalnumber, time_of_booking) VALUES(?,?,?, CURRENT_TIMESTAMP)");
             ps.setInt(1, Integer.parseInt(employeeNbr));
             ps.setTimestamp(2, Timestamp.valueOf(dateTime));
@@ -373,7 +377,7 @@ public class DatabaseImpl implements IDatabase {
             ps.executeUpdate();
             return true;
         }catch (SQLException throwables ){
-            //throwables.printStackTrace();
+            // sql return code for it not being friday in the checkIfFriday Trigger
             if(throwables.getErrorCode() == 3609){
                 System.out.println("Today is not friday");
             }
@@ -434,6 +438,7 @@ public class DatabaseImpl implements IDatabase {
             // query
             query += "-" + birthDay +"'";
         }
+        // if query string is blank then patient should not be updated, return false to break
         if(query.isBlank()){
             return false;
         }
